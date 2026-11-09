@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal Agenda and schedure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0e10; --panel:#17171a; --card:#1d1d20; --card2:#242428;
+  --border:#2a2a2e; --text:#fafafa; --muted:#9ca3af; --accent:#00c7be;
+  --accent2:#7c3aed; --red:#ff4b4b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui}
+
+/* TOP - always sticky */
+.top{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;
+  background:rgba(23,23,26,.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);padding:10px 14px;
+  position:sticky;top:0;z-index:20
+}
+.left-head .avatar-wrap{position:relative;width:36px;height:36px;display:block;cursor:pointer}
+.left-head .avatar-wrap img{width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--border)}
+.left-head .edit{position:absolute;bottom:-2px;right:-2px;background:var(--text);color:#000;font-size:8px;width:14px;height:14px;border-radius:50%;display:grid;place-items:center}
+.mid-head{text-align:center} .mid-head b{display:block;font-family:'JetBrains Mono';font-size:13px} 
+.mid-head .device-tag{font-size:8px;font-family:'JetBrains Mono';color:var(--accent);border:1px dashed var(--accent);padding:1px 5px;border-radius:4px}
+.right-head{display:flex;align-items:center;gap:8px;position:relative}
+.theme-switch{display:flex;gap:4px;background:var(--panel);border:1px solid var(--border);padding:3px;border-radius:99px}
+.theme-switch button{background:transparent;border:0;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:12px}
+.theme-switch button.active{background:var(--text);color:#000}
+.menu-btn{background:var(--card2);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:8px;font-size:16px;cursor:pointer}
+.menu-drop{position:absolute;top:44px;right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:160px;box-shadow:0 10px 30px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:2px}
+.menu-drop button{background:transparent;border:0;text-align:left;padding:8px 10px;border-radius:6px;color:var(--text);font-size:12px;font-family:'JetBrains Mono';cursor:pointer}
+.menu-drop button:hover{background:var(--panel)}
+
+/* THEMES */
+:root[data-theme="light"]{
+  --bg:#f6f7fb; --panel:#fff; --card:#fff; --card2:#f3f4f6;
+  --border:#e5e7eb; --text:grey; --muted:#6b7280; --accent:#00c7be;
+}
+:root[data-theme="dark"]{
+  --bg:#0e0e10; --panel:#17171a; --card:#1d1d20; --card2:#242428;
+  --border:#2a2a2e; --text:#fafafa; --muted:#9ca3af; --accent:#00c7be;
+}
+:root[data-theme="black"]{
+  --bg:#000; --panel:#0a0a0a; --card:#111; --card2:#1a1a1a;
+  --border:#222; --text:#fff; --muted:#888; --accent:#7c3aed;
+}
+
+/* NAV */
+.nav{
+  display:flex;gap:6px;padding:12px 16px;background:var(--panel);
+  border-bottom:1px solid var(--border);overflow:auto;position:sticky;top:57px;z-index:10
+}
+.nav button{
+  font-family:'JetBrains Mono';font-size:11px;letter-spacing:.02em;
+  border:1px solid var(--border);background:var(--card);color:var(--muted);
+  padding:8px 14px;border-radius:8px;font-weight:700;transition:.2s;white-space:nowrap;cursor:pointer;
+}
+.nav button.active{background:var(--text);color:#000;border-color:var(--text)}
+
+.wrap{max-width:780px;margin:0 auto;padding:16px}
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:16px;margin-bottom:12px;
+}
+.card h2{margin:0 0 4px 0;font-size:14px;font-family:'JetBrains Mono'}
+.sub{font-size:12px;color:var(--muted);margin-bottom:12px;font-family:'JetBrains Mono'}
+.row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.row input,.row select,.row textarea{
+  flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  padding:10px 12px;border-radius:8px;font-size:13px;
+}
+.kpi{display:flex;justify-content:space-between;margin-bottom:16px;background:var(--panel);padding:12px;border-radius:8px;border:1px solid var(--border)}
+.totalBox{margin-top:12px;padding:12px;background:var(--panel);border-radius:8px;border:1px solid var(--border)}
+.totalRow{display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px}
+.totalRow.big{font-weight:700;font-size:14px;margin-top:8px;border-top:1px dashed var(--border);padding-top:8px}
+.btn{border:0;border-radius:8px;padding:9px 14px;font-weight:700;font-size:11px;font-family:'JetBrains Mono';cursor:pointer}
+.btn-dark{background:var(--text);color:#000} .btn-blue{background:var(--accent);color:#000} .btn-ghost{background:var(--card2);border:1px solid var(--border);color:var(--text)} .btn-red{background:var(--red);color:#fff}
+.item{display:flex;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--panel)}
+.item.done input[type="text"]{text-decoration:line-through;opacity:0.6}
+.badge{font-size:10px;background:var(--card2);border:1px solid var(--border);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.tick{font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer}
+.hidden{display:none}
+.footer{text-align:center;font-size:10px;color:var(--muted);padding:24px;font-family:'JetBrains Mono'}
+/* RESPONSIVE - FIXED */
+@media (max-width: 900px){
+  .nav{display:none !important}
+  .menu-btn{display:grid !important}
+  .top{position:sticky;top:0}
+}
+@media (min-width: 901px){
+  body{display:flex}
+  .top{position:fixed;top:0;left:220px;right:0}
+  .menu-btn{display:none !important}
+  .menu-drop{display:none !important}
+  .nav{
+    display:flex !important;
+    position:fixed;left:0;top:0;bottom:0;width:220px;
+    flex-direction:column;
+    padding:20px 12px;border-right:1px solid var(--border);
+    background:var(--panel);
+  }
+  .nav button{width:100%;text-align:left;margin-bottom:4px}
+  .wrap{margin-left:220px;width:calc(100% - 220px);padding:80px 32px 32px 32px}
+}
+@media (max-width: 400px){
+  .row{flex-direction:column}
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="top">
+  <div class="left-head">
+    <label for="picInput" class="avatar-wrap">
+      <img id="avatar" src="https://i.pravatar.cc/100?img=3" alt="me">
+      <span class="edit"><span id="dashName">.</span></span>
+    </label>
+    <input type="file" id="picInput" accept="image/*" hidden onchange="savePic(event)">
+  </div>
+
+  <div class="mid-head">
+    <b>personal daily activity
+    <span id="deviceTag" class="device-tag">PHONE</span>
+  </div>
+
+  <div class="right-head">
+    <div class="theme-switch">
+      <button onclick="setTheme('light')" title="Light">‚òÄÔ∏è</button>
+      <button onclick="setTheme('dark')" title="Dark">üåô</button>
+      <button onclick="setTheme('black')" title="Black">üñ§</button>
+    </div>
+    <button class="menu-btn" onclick="toggleMenu()">‚ò∞</button>
+    <div id="menuDrop" class="menu-drop hidden">
+      <button onclick="show('dashboard')">Dashboard</button>
+      <button onclick="show('budget')">Budget</button>
+      <button onclick="show('todo')">ToDos</button>
+      <button onclick="show('academic')">Academics</button>
+      <button onclick="show('goals')">Goals</button>
+      <button onclick="show('profile')">Profile</button>
+      <button onclick="exportData()">Export Backup</button>
+<button onclick="document.getElementById('importFile').click()">Import Backup</button>
+      <button onclick="resetAll()" style="color:var(--red)">Reset</button>
+    </div>
+<input type="file" id="importFile" accept=".json" hidden onchange="importData(event)">
+  </div>
+</div>
+<div id="authSec" class="card" style="max-width:400px; margin: 40px auto; padding: 24px; text-align:center;">
+  <h2>Sign In / Sign Up</h2>
+  <input id="ae" type="email" placeholder="Email" style="width:100%; padding:10px; margin-bottom:8px; background:var(--panel); border:1px solid var(--border); color:#fff;">
+  <input id="ap" type="password" placeholder="Password" style="width:100%; padding:10px; margin-bottom:12px; background:var(--panel); border:1px solid var(--border); color:#fff;">
+  <button class="btn btn-blue" onclick="fbAuth('login')" style="width:48%">Login</button>
+  <button class="btn btn-ghost" onclick="fbAuth('signup')" style="width:48%">Sign Up</button>
+</div>
+<div class="nav">
+  <button id="m-dashboard" class="active" onclick="show('dashboard')">Dashboard</button>
+  <button id="m-budget" onclick="show('budget')">Budget</button>
+  <button id="m-todo" onclick="show('todo')">ToDos</button>
+  <button id="m-academic" onclick="show('academic')">Academics</button>
+  <button id="m-goals" onclick="show('goals')">Goals</button>
+  <button id="m-profile" onclick="show('profile')">Profile</button>
+</div>
+<div class="wrap">
+  <!-- DASHBOARD -->
+  <div id="sec-dashboard" class="card">
+    <h2>Hey <span id="dashName">Vainqueur</span> üëã</h2>
+    <div class="sub">focus to success you on the way one day you will</div>
+    <div class="kpi">
+      <div><span style="font-size:11px;color:var(--muted)">Pending Tasks</span><b id="kTodo" style="display:block;font-size:16px">0</b></div>
+      <div><span style="font-size:11px;color:var(--muted)">Budget Monthly</span><b id="kBudget" style="display:block;font-size:16px">0 RWF</b></div>
+      <div><span style="font-size:11px;color:var(--muted)">Goals Done</span><b id="kGoals" style="display:block;font-size:16px">0%</b></div>
+    </div>
+    <canvas id="chart" width="600" height="280" style="max-width:100%"></canvas>
+  </div>
+
+  <!-- BUDGET -->
+  <div id="sec-budget" class="card hidden">
+    <h2>Budget Planner</h2>
+    <div class="sub">this 1 year daily required expenses from 1st september</div>
+    <div class="row">
+      <input id="bName" placeholder="Item name e.g. Rent">
+      <input id="bAmount" type="number" placeholder="RWF" style="max-width:100px">
+      <select id="bCat" style="max-width:100px">
+        <option>Rent</option>
+        <option>Food</option>
+        <option>School</option>
+        <option>Transport</option>
+        <option>Other</option>
+      </select>
+      <button class="btn btn-dark" onclick="addBudget()">+ Add</button>
+    </div>
+    <div id="bList"><div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No budget items added yet.</div></div>
+    <button class="btn btn-blue" style="width:100%;margin-top:12px" onclick="calcBudget()">Calculate Total</button>
+    <div class="totalBox">
+      <div class="totalRow"><span>Pending</span><span id="tPending">0 RWF</span></div>
+      <div class="totalRow"><span>Done ‚úî</span><span id="tDone">0 RWF</span></div>
+      <div class="totalRow big"><span>Total expense payable</span><span id="tAll">0 RWF</span></div>
+    </div>
+  </div>
+
+  <!-- TO DO -->
+  <div id="sec-todo" class="card hidden">
+    <h2>To-Do List</h2>
+    <div class="sub">Auto-saved. Tick when completed.</div>
+    <div class="row">
+      <input id="todoInput" placeholder="e.g. Submit MAT101 assignment">
+      <select id="todoCat" style="max-width:110px">
+        <option>School</option>
+        <option>Personal</option>
+        <option>Finance</option>
+      </select>
+      <button class="btn btn-dark" onclick="addTodo()">Add Task</button>
+    </div>
+    <div id="todoList"></div>
+  </div>
+
+  <div id="sec-academic" class="card hidden">
+    <h2>Academics - CATs & Assignments</h2>
+    <div class="sub">Track continuous assessment marks early.</div>
+    <div class="row">
+      <input id="acName" placeholder="e.g. MAT101 CAT1">
+      <input id="acGrade" type="number" placeholder="/100" style="max-width:80px">
+      <input id="acDate" type="date" style="max-width:130px">
+      <button class="btn btn-dark" onclick="addAcademic()">Add</button>
+    </div>
+    <div id="acList"></div>
+  </div>
+
+  <!-- GOALS -->
+  <div id="sec-goals" class="card hidden">
+    <h2>Goals</h2>
+    <div class="sub">Keep focus on key goals for the term. to success</div>
+    <div class="row">
+      <input id="goalInput" placeholder="e.g. GPA 3.8+">
+      <button class="btn btn-dark" onclick="addGoal()">Add Goal</button>
+    </div>
+    <div id="goalList"></div>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="sec-profile" class="card hidden">
+    <h2>Profile Settings</h2>
+    <div class="sub">Saved locally in your browser storage.</div>
+    <div class="row"><input id="pName" placeholder="Full Name"><input id="pYear" placeholder="Year" style="max-width:80px"></div>
+    <div class="row"><input id="pCourse" placeholder="Course e.g. CST - Computer Eng"><input id="pEmail" placeholder="Email address"></div>
+    <div class="row"><textarea id="pBio" rows="3" placeholder="Bio..."></textarea></div>
+    <button class="btn btn-dark" style="width:100%" onclick="saveProfile()">Save Profile</button>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-ghost" onclick="exportData()">Export Backup</button>
+      <button class="btn btn-red" onclick="resetAll()">Reset All</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    Copyright ¬© 2026 VENDOR TECH HUB. All rights reserved.
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "personal-agenda-e2141.firebaseapp.com",
+  projectId: "personal-agenda-e2141",
+  storageBucket: "personal-agenda-e2141.firebasestorage.app",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app);
+let currentUser = null;
+
+window.state = {
+  budgets: [], todos: [], goals: [], academics: [], 
+  profile: { name: '', course: '', year: '', email: '', bio: '' }
+};
+
+onAuthStateChanged(auth, async user => {
+  const isOut = !user;
+  document.getElementById('authSec').classList.toggle('hidden', !isOut);
+  document.querySelectorAll('.top,.nav,.wrap').forEach(el => el.classList.toggle('hidden', isOut));
+  if (user) {
+    currentUser = user;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) window.state = snap.data();
+    init();
+  }
+});
+
+window.fbAuth = t => {
+  const e = document.getElementById('ae').value, p = document.getElementById('ap').value;
+  if(t==='login') signInWithEmailAndPassword(auth, e, p).catch(err => alert(err.message));
+  else createUserWithEmailAndPassword(auth, e, p).catch(err => alert(err.message));
+};
+
+window.logout = () => signOut(auth);
+
+window.save = async () => {
+  if (currentUser) await setDoc(doc(db, "users", currentUser.uid), window.state);
+  updateDash();
+};
+
+window.updateDash = () => { renderTodo(); renderGoals(); calcBudget(); };
+window.show = sec => {
+  document.querySelectorAll('[id^="sec-"]').forEach(e => e.classList.add('hidden'));
+  document.getElementById('sec-'+sec)?.classList.remove('hidden');
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('m-'+sec)?.classList.add('active');
+  document.getElementById('menuDrop')?.classList.add('hidden');
+};
+
+window.renderBudget = () => {
+  const l = document.getElementById('bList');
+  if(!window.state.budgets.length){
+    l.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted)">No items</div>'; 
+    calcBudget(); return;
+  }
+  l.innerHTML = '';
+  window.state.budgets.forEach((it, i) => {
+    const d = document.createElement('div'); d.className = 'item' + (it.done ? ' done' : '');
+    d.innerHTML = `<input type="text" value="${it.name}" onchange="window.state.budgets[${i}].name=this.value;save();renderBudget()"><input type="number" value="${it.amount}" style="width:80px" oninput="window.state.budgets[${i}].amount=parseInt(this.value||0);save();calcBudget()"><span class="badge">${it.cat}</span><label class="tick"><input type="checkbox" ${it.done ? 'checked' : ''} onchange="window.state.budgets[${i}].done=this.checked;save();renderBudget()"> ${it.done ? 'Done' : 'Pending'}</label><button class="btn btn-red" onclick="window.state.budgets.splice(${i},1);save();renderBudget()" style="width:32px;padding:4px">◊</button>`;
+    l.appendChild(d);
+  }); 
+  calcBudget();
+};
+
+window.addBudget = () => {
+  const n = document.getElementById('bName').value.trim(), a = parseInt(document.getElementById('bAmount').value || 0), c = document.getElementById('bCat').value;
+  if(!n || !a) return alert('Enter data');
+  window.state.budgets.push({name: n, amount: a, cat: c, done: false});
+  document.getElementById('bName').value = ''; document.getElementById('bAmount').value = '';
+  save(); renderBudget();
+};
+
+window.calcBudget = () => {
+  let p = 0, d = 0;
+  window.state.budgets.forEach(it => { if(it.done) d += it.amount; else p += it.amount; });
+  document.getElementById('tPending').textContent = p.toLocaleString() + ' RWF';
+  document.getElementById('tDone').textContent = d.toLocaleString() + ' RWF';
+  document.getElementById('tAll').textContent = (p + d).toLocaleString() + ' RWF';
+  document.getElementById('kBudget').textContent = (p + d).toLocaleString() + ' RWF';
+  drawChart();
+};
+
+window.renderTodo = () => {
+  const c = document.getElementById('todoList'); c.innerHTML = '';
+  window.state.todos.forEach((it, i) => {
+    const d = document.createElement('div'); d.className = 'item' + (it.done ? ' done' : '');
+    d.innerHTML = `<input type="checkbox" ${it.done ? 'checked' : ''} onchange="window.state.todos[${i}].done=this.checked;save();renderTodo()"><input type="text" value="${it.text}" onchange="window.state.todos[${i}].text=this.value;save()" style="flex:1"><span class="badge">${it.cat}</span><button class="btn btn-red" onclick="window.state.todos.splice(${i},1);save();renderTodo()" style="width:32px;padding:4px">◊</button>`;
+    c.appendChild(d);
+  });
+  document.getElementById('kTodo').textContent = window.state.todos.filter(t => !t.done).length;
+};
+
+window.addTodo = () => {
+  const i = document.getElementById('todoInput'), t = i.value.trim(); if(!t) return;
+  window.state.todos.push({text: t, cat: document.getElementById('todoCat').value, done: false});
+  i.value = ''; save(); renderTodo();
+};
+
+window.renderAcademic = () => {
+  const c = document.getElementById('acList'); if(!c) return; c.innerHTML = '';
+  if(!window.state.academics.length) { c.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted)">No CATs</div>'; return; }
+  window.state.academics.forEach((it, i) => {
+    const d = document.createElement('div'); d.className = 'item';
+    d.innerHTML = `<input type="text" value="${it.name}" onchange="window.state.academics[${i}].name=this.value;save()"><input type="number" value="${it.grade}" style="width:70px" onchange="window.state.academics[${i}].grade=this.value;save()"><input type="date" value="${it.date}" onchange="window.state.academics[${i}].date=this.value;save()"><button class="btn btn-red" onclick="window.state.academics.splice(${i},1);save();renderAcademic()" style="width:32px;padding:4px">◊</button>`;
+    c.appendChild(d);
+  });
+};
+
+window.addAcademic = () => {
+  const n = document.getElementById('acName').value.trim(); if(!n) return alert('Enter name');
+  window.state.academics.push({ name: n, grade: document.getElementById('acGrade').value || 0, date: document.getElementById('acDate').value || '' });
+  document.getElementById('acName').value = ''; document.getElementById('acGrade').value = '';
+  save(); renderAcademic();
+};
+
+window.renderGoals = () => {
+  const c = document.getElementById('goalList'); c.innerHTML = '';
+  window.state.goals.forEach((it, i) => {
+    const d = document.createElement('div'); d.className = 'item' + (it.done ? ' done' : '');
+    d.innerHTML = `<input type="checkbox" ${it.done ? 'checked' : ''} onchange="window.state.goals[${i}].done=this.checked;save();renderGoals()"><input type="text" value="${it.text}" onchange="window.state.goals[${i}].text=this.value;save()" style="flex:1"><button class="btn btn-red" onclick="window.state.goals.splice(${i},1);save();renderGoals()" style="width:32px;padding:4px">◊</button>`;
+    c.appendChild(d);
+  });
+  const pct = window.state.goals.length ? Math.round(window.state.goals.filter(g => g.done).length / window.state.goals.length * 100) : 0;
+  document.getElementById('kGoals').textContent = pct + '%';
+};
+
+window.addGoal = () => {
+  const i = document.getElementById('goalInput'), t = i.value.trim(); if(!t) return;
+  window.state.goals.push({text: t, done: false}); i.value = ''; save(); renderGoals();
+};
+
+window.loadProfile = () => {
+  const p = window.state.profile;
+  document.getElementById('pName').value = p.name || '';
+  document.getElementById('pCourse').value = p.course || '';
+  document.getElementById('pYear').value = p.year || '';
+  document.getElementById('pEmail').value = p.email || '';
+  document.getElementById('pBio').value = p.bio || '';
+  document.getElementById('dashName').textContent = p.name || 'User';
+};
+
+window.saveProfile = () => {
+  window.state.profile = { name: document.getElementById('pName').value, course: document.getElementById('pCourse').value, year: document.getElementById('pYear').value, email: document.getElementById('pEmail').value, bio: document.getElementById('pBio').value };
+  save(); loadProfile(); alert('Saved!');
+};
+
+window.checkWidth = () => {
+  const w = window.innerWidth, t = w < 400 ? 'SMALL PHONE' : w < 601 ? 'PHONE' : w < 901 ? 'TABLET' : 'DESKTOP';
+  document.getElementById('deviceTag').textContent = `${t} ï ${w}px`;
+};
+
+window.drawChart = () => {
+  const canvas = document.getElementById('chart'); if(!canvas) return;
+  const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const cats = {}; window.state.budgets.forEach(b => { cats[b.cat || 'Other'] = (cats[b.cat || 'Other'] || 0) + b.amount; });
+  const entries = Object.entries(cats); if(!entries.length) return;
+  const max = Math.max(...entries.map(e => e[1]), 1), barW = 400 / entries.length;
+  entries.forEach((e, i) => {
+    const h = (e[1] / max) * 180, x = 60 + i * (barW + 20);
+    ctx.fillStyle = '#00c7be'; ctx.fillRect(x, 200 - h, barW, h);
+    ctx.fillStyle = '#9ca3af'; ctx.font = '11px Inter'; ctx.fillText(e[0], x, 220);
+    ctx.fillStyle = '#fafafa'; ctx.font = '700 12px Inter'; ctx.fillText(e[1].toLocaleString(), x, 190 - h);
+  });
+};
+
+window.setTheme = mode => {
+  document.documentElement.setAttribute('data-theme', mode);
+  localStorage.setItem('themeMode', mode);
+  document.querySelectorAll('.theme-switch button').forEach(b => b.classList.remove('active'));
+};
+
+window.toggleMenu = () => document.getElementById('menuDrop').classList.toggle('hidden');
+
+window.init = () => {
+  checkWidth();
+  setTheme(localStorage.getItem('themeMode') || 'dark');
+  loadProfile(); renderBudget(); renderTodo(); renderAcademic(); renderGoals(); updateDash(); show('dashboard'); drawChart();
+};
+
+window.addEventListener('resize', window.checkWidth);
+</script>
+
+</body>
+</html>
