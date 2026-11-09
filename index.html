@@ -133,11 +133,11 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-
 
   <div class="right-head">
     <div class="theme-switch">
-      <button onclick="setTheme('light')" title="Light">☀️</button>
-      <button onclick="setTheme('dark')" title="Dark">🌙</button>
-      <button onclick="setTheme('black')" title="Black">🖤</button>
+      <button onclick="setTheme('light')" title="Light">â˜€ï¸</button>
+      <button onclick="setTheme('dark')" title="Dark">ðŸŒ™</button>
+      <button onclick="setTheme('black')" title="Black">ðŸ–¤</button>
     </div>
-    <button class="menu-btn" onclick="toggleMenu()">☰</button>
+    <button class="menu-btn" onclick="toggleMenu()">â˜°</button>
     <div id="menuDrop" class="menu-drop hidden">
       <button onclick="show('dashboard')">Dashboard</button>
       <button onclick="show('budget')">Budget</button>
@@ -170,7 +170,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-
 <div class="wrap">
   <!-- DASHBOARD -->
   <div id="sec-dashboard" class="card">
-    <h2>Hey <span id="dashName">Vainqueur</span> 👋</h2>
+    <h2>Hey <span id="dashName">Vainqueur</span> ðŸ‘‹</h2>
     <div class="sub">focus to success you on the way one day you will</div>
     <div class="kpi">
       <div><span style="font-size:11px;color:var(--muted)">Pending Tasks</span><b id="kTodo" style="display:block;font-size:16px">0</b></div>
@@ -200,7 +200,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-
     <button class="btn btn-blue" style="width:100%;margin-top:12px" onclick="calcBudget()">Calculate Total</button>
     <div class="totalBox">
       <div class="totalRow"><span>Pending</span><span id="tPending">0 RWF</span></div>
-      <div class="totalRow"><span>Done ✔</span><span id="tDone">0 RWF</span></div>
+      <div class="totalRow"><span>Done âœ”</span><span id="tDone">0 RWF</span></div>
       <div class="totalRow big"><span>Total expense payable</span><span id="tAll">0 RWF</span></div>
     </div>
   </div>
@@ -259,198 +259,468 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-
   </div>
 
   <div class="footer">
-    Copyright © 2026 VENDOR TECH HUB. All rights reserved.
+    Copyright Â© 2026 VENDOR TECH HUB. All rights reserved.
   </div>
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { Client, Account, Databases, ID } from "https://cdn.jsdelivr.net/npm/appwrite@14.0.0/+esm";
 
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "personal-agenda-e2141.firebaseapp.com",
-  projectId: "personal-agenda-e2141",
-  storageBucket: "personal-agenda-e2141.firebasestorage.app",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
+  const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
+  const APPWRITE_PROJECT_ID = "YOUR_APPWRITE_PROJECT_ID";
+  const APPWRITE_DATABASE_ID = "personalagenda";
+  const APPWRITE_COLLECTION_ID = "userData";
 
-const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app);
-let currentUser = null;
+  const client = new Client()
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT_ID);
 
-window.state = {
-  budgets: [], todos: [], goals: [], academics: [], 
-  profile: { name: '', course: '', year: '', email: '', bio: '' }
-};
+  const account = new Account(client);
+  const databases = new Databases(client);
 
-onAuthStateChanged(auth, async user => {
-  const isOut = !user;
-  document.getElementById('authSec').classList.toggle('hidden', !isOut);
-  document.querySelectorAll('.top,.nav,.wrap').forEach(el => el.classList.toggle('hidden', isOut));
-  if (user) {
-    currentUser = user;
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) window.state = snap.data();
+  const localStateKey = "personalagenda.localState.v1";
+
+  let currentUser = null;
+
+  window.state = {
+    budgets: [],
+    todos: [],
+    goals: [],
+    academics: [],
+    profile: { name: "", course: "", year: "", email: "", bio: "" }
+  };
+
+  function loadLocalState() {
+    try {
+      const raw = localStorage.getItem(localStateKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      window.state = {
+        ...window.state,
+        ...parsed,
+        profile: { ...window.state.profile, ...(parsed.profile || {}) }
+      };
+    } catch (err) {
+      console.warn("No local state found", err);
+    }
+  }
+
+  function saveLocalState() {
+    localStorage.setItem(localStateKey, JSON.stringify(window.state));
+  }
+
+  async function ensureUserDoc(userId) {
+    try {
+      return await databases.getDocument(APPWRITE_DATABASE_ID, APPWRITE_COLLECTION_ID, userId);
+    } catch (err) {
+      if (err.code === 404) {
+        const payload = {
+          ...window.state,
+          profile: { ...window.state.profile },
+          userId
+        };
+        return await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_COLLECTION_ID,
+          userId,
+          payload
+        );
+      }
+      throw err;
+    }
+  }
+
+  async function syncStateToAppwrite() {
+    if (!currentUser) {
+      saveLocalState();
+      return;
+    }
+
+    const payload = {
+      ...window.state,
+      profile: { ...window.state.profile },
+      userId: currentUser.$id
+    };
+
+    try {
+      await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_COLLECTION_ID,
+        currentUser.$id,
+        payload
+      );
+    } catch (err) {
+      if (err.code === 404) {
+        await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_COLLECTION_ID,
+          currentUser.$id,
+          payload
+        );
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  async function loadCloudState() {
+    try {
+      const user = await account.get();
+      currentUser = user;
+
+      const doc = await ensureUserDoc(user.$id);
+      window.state = {
+        ...window.state,
+        ...doc,
+        profile: { ...window.state.profile, ...(doc.profile || {}) }
+      };
+
+      return true;
+    } catch (err) {
+      currentUser = null;
+      return false;
+    }
+  }
+
+  async function appwriteAuth(mode) {
+    const email = document.getElementById("ae").value.trim();
+    const password = document.getElementById("ap").value.trim();
+
+    if (!email || !password) {
+      alert("Email and password are required.");
+      return;
+    }
+
+    try {
+      if (mode === "signup") {
+        await account.create(
+          ID.unique(),
+          email,
+          password,
+          document.getElementById("pName")?.value?.trim() || "User"
+        );
+      }
+
+      await account.createEmailPasswordSession(email, password);
+      currentUser = await account.get();
+
+      const doc = await ensureUserDoc(currentUser.$id);
+      window.state = {
+        ...window.state,
+        ...doc,
+        profile: { ...window.state.profile, ...(doc.profile || {}) }
+      };
+
+      document.getElementById("authSec").classList.add("hidden");
+      document.querySelectorAll(".top,.nav,.wrap").forEach(el => el.classList.remove("hidden"));
+      init();
+    } catch (err) {
+      alert(err.message || "Authentication failed");
+    }
+  }
+
+  window.fbAuth = appwriteAuth;
+  window.logout = async () => {
+    try {
+      if (currentUser) {
+        await account.deleteSession("current");
+      }
+      currentUser = null;
+      saveLocalState();
+      document.getElementById("authSec").classList.remove("hidden");
+      document.querySelectorAll(".top,.nav,.wrap").forEach(el => el.classList.add("hidden"));
+    } catch (err) {
+      alert(err.message || "Logout failed");
+    }
+  };
+
+  window.save = async () => {
+    try {
+      await syncStateToAppwrite();
+    } catch (err) {
+      console.error("Cloud sync failed, saving locally instead.", err);
+      saveLocalState();
+    }
+    updateDash();
+  };
+
+  window.updateDash = () => {
+    renderTodo();
+    renderGoals();
+    calcBudget();
+  };
+
+  window.show = sec => {
+    document.querySelectorAll('[id^="sec-"]').forEach(e => e.classList.add("hidden"));
+    document.getElementById("sec-" + sec)?.classList.remove("hidden");
+    document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
+    document.getElementById("m-" + sec)?.classList.add("active");
+    document.getElementById("menuDrop")?.classList.add("hidden");
+  };
+
+  window.renderBudget = () => {
+    const l = document.getElementById("bList");
+    if (!window.state.budgets.length) {
+      l.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted)">No items</div>';
+      calcBudget();
+      return;
+    }
+
+    l.innerHTML = "";
+    window.state.budgets.forEach((it, i) => {
+      const d = document.createElement("div");
+      d.className = "item" + (it.done ? " done" : "");
+      d.innerHTML = `
+        <input type="text" value="${it.name}" onchange="window.state.budgets[${i}].name=this.value;save();renderBudget()">
+        <input type="number" value="${it.amount}" style="width:80px" onchange="window.state.budgets[${i}].amount=parseInt(this.value||0);save();renderBudget()">
+        <select style="max-width:100px" onchange="window.state.budgets[${i}].cat=this.value;save();renderBudget()">
+          <option ${it.cat === "Rent" ? "selected" : ""}>Rent</option>
+          <option ${it.cat === "Food" ? "selected" : ""}>Food</option>
+          <option ${it.cat === "School" ? "selected" : ""}>School</option>
+          <option ${it.cat === "Transport" ? "selected" : ""}>Transport</option>
+          <option ${it.cat === "Other" ? "selected" : ""}>Other</option>
+        </select>
+        <button class="btn btn-red" onclick="window.state.budgets.splice(${i},1);save();renderBudget()">Remove</button>
+      `;
+      l.appendChild(d);
+    });
+
+    calcBudget();
+  };
+
+  window.addBudget = () => {
+    const n = document.getElementById("bName").value.trim();
+    const a = parseInt(document.getElementById("bAmount").value || 0);
+    const c = document.getElementById("bCat").value;
+
+    if (!n || !a) {
+      alert("Enter Item Name and Amount");
+      return;
+    }
+
+    window.state.budgets.push({ name: n, amount: a, cat: c, done: false });
+    document.getElementById("bName").value = "";
+    document.getElementById("bAmount").value = "";
+    save();
+    renderBudget();
+  };
+
+  window.calcBudget = () => {
+    let pending = 0, done = 0;
+    window.state.budgets.forEach(it => {
+      if (it.done) pending += it.amount;
+      else done += it.amount;
+    });
+
+    document.getElementById("tPending").textContent = pending.toLocaleString() + " RWF";
+    document.getElementById("tDone").textContent = done.toLocaleString() + " RWF";
+    document.getElementById("tAll").textContent = (pending + done).toLocaleString() + " RWF";
+    document.getElementById("kBudget").textContent = (pending + done).toLocaleString() + " RWF";
+
+    drawChart();
+  };
+
+  window.renderTodo = () => {
+    const c = document.getElementById("todoList");
+    c.innerHTML = "";
+    window.state.todos.forEach((it, i) => {
+      const d = document.createElement("div");
+      d.className = "item" + (it.done ? " done" : "");
+      d.innerHTML = `
+        <input type="checkbox" ${it.done ? "checked" : ""} onchange="window.state.todos[${i}].done=this.checked;save();renderTodo()">
+        <input type="text" value="${it.text}" onchange="window.state.todos[${i}].text=this.value;save()">
+        <button class="btn btn-red" onclick="window.state.todos.splice(${i},1);save();renderTodo()">Remove</button>
+      `;
+      c.appendChild(d);
+    });
+
+    document.getElementById("kTodo").textContent = window.state.todos.filter(t => !t.done).length;
+  };
+
+  window.addTodo = () => {
+    const i = document.getElementById("todoInput");
+    const t = i.value.trim();
+    if (!t) return;
+
+    window.state.todos.push({ text: t, cat: document.getElementById("todoCat").value, done: false });
+    i.value = "";
+    save();
+    renderTodo();
+  };
+
+  window.renderAcademic = () => {
+    const c = document.getElementById("acList");
+    if (!c) return;
+    c.innerHTML = "";
+
+    if (!window.state.academics.length) {
+      c.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted)">No CATs</div>';
+      return;
+    }
+
+    window.state.academics.forEach((it, i) => {
+      const d = document.createElement("div");
+      d.className = "item";
+      d.innerHTML = `
+        <input type="text" value="${it.name}" onchange="window.state.academics[${i}].name=this.value;save()">
+        <input type="number" value="${it.grade}" style="width:70px" onchange="window.state.academics[${i}].grade=parseFloat(this.value||0);save()">
+        <input type="date" value="${it.date || ""}" onchange="window.state.academics[${i}].date=this.value;save()">
+        <button class="btn btn-red" onclick="window.state.academics.splice(${i},1);save();renderAcademic()">Remove</button>
+      `;
+      c.appendChild(d);
+    });
+  };
+
+  window.addAcademic = () => {
+    const n = document.getElementById("acName").value.trim();
+    if (!n) return alert("Enter name");
+
+    window.state.academics.push({
+      name: n,
+      grade: document.getElementById("acGrade").value || 0,
+      date: document.getElementById("acDate").value || ""
+    });
+
+    document.getElementById("acName").value = "";
+    document.getElementById("acGrade").value = "";
+    document.getElementById("acDate").value = "";
+    save();
+    renderAcademic();
+  };
+
+  window.renderGoals = () => {
+    const c = document.getElementById("goalList");
+    c.innerHTML = "";
+    window.state.goals.forEach((it, i) => {
+      const d = document.createElement("div");
+      d.className = "item" + (it.done ? " done" : "");
+      d.innerHTML = `
+        <input type="checkbox" ${it.done ? "checked" : ""} onchange="window.state.goals[${i}].done=this.checked;save();renderGoals()">
+        <input type="text" value="${it.text}" onchange="window.state.goals[${i}].text=this.value;save()">
+        <button class="btn btn-red" onclick="window.state.goals.splice(${i},1);save();renderGoals()">Remove</button>
+      `;
+      c.appendChild(d);
+    });
+
+    const pct = window.state.goals.length
+      ? Math.round(window.state.goals.filter(g => g.done).length / window.state.goals.length * 100)
+      : 0;
+    document.getElementById("kGoals").textContent = pct + "%";
+  };
+
+  window.addGoal = () => {
+    const i = document.getElementById("goalInput");
+    const t = i.value.trim();
+    if (!t) return;
+
+    window.state.goals.push({ text: t, done: false });
+    i.value = "";
+    save();
+    renderGoals();
+  };
+
+  window.loadProfile = () => {
+    const p = window.state.profile;
+    document.getElementById("pName").value = p.name || "";
+    document.getElementById("pCourse").value = p.course || "";
+    document.getElementById("pYear").value = p.year || "";
+    document.getElementById("pEmail").value = p.email || "";
+    document.getElementById("pBio").value = p.bio || "";
+    document.getElementById("dashName").textContent = p.name || "User";
+  };
+
+  window.saveProfile = () => {
+    window.state.profile = {
+      name: document.getElementById("pName").value,
+      course: document.getElementById("pCourse").value,
+      year: document.getElementById("pYear").value,
+      email: document.getElementById("pEmail").value,
+      bio: document.getElementById("pBio").value
+    };
+
+    save();
+    loadProfile();
+    alert("Saved!");
+  };
+
+  window.checkWidth = () => {
+    const w = window.innerWidth;
+    const t = w < 400 ? "SMALL PHONE" : w < 601 ? "PHONE" : w < 901 ? "TABLET" : "DESKTOP";
+    document.getElementById("deviceTag").textContent = `${t} • ${w}px`;
+  };
+
+  window.drawChart = () => {
+    const canvas = document.getElementById("chart");
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const cats = {};
+    window.state.budgets.forEach(b => {
+      cats[b.cat || "Other"] = (cats[b.cat || "Other"] || 0) + b.amount;
+    });
+
+    const entries = Object.entries(cats);
+    if (!entries.length) return;
+
+    const max = Math.max(...entries.map(e => e[1]), 1);
+    const barW = 400 / entries.length;
+
+    entries.forEach((e, i) => {
+      const h = (e[1] / max) * 180;
+      const x = 60 + i * (barW + 20);
+
+      ctx.fillStyle = "#00c7be";
+      ctx.fillRect(x, 200 - h, barW, h);
+
+      ctx.fillStyle = "#9ca3af";
+      ctx.font = "11px Inter";
+      ctx.fillText(e[0], x, 220);
+
+      ctx.fillStyle = "#fafafa";
+      ctx.font = "700 12px Inter";
+      ctx.fillText(e[1].toLocaleString(), x, 190 - h);
+    });
+  };
+
+  window.setTheme = mode => {
+    document.documentElement.setAttribute("data-theme", mode);
+    localStorage.setItem("themeMode", mode);
+    document.querySelectorAll(".theme-switch button").forEach(b => b.classList.remove("active"));
+  };
+
+  window.toggleMenu = () => document.getElementById("menuDrop").classList.toggle("hidden");
+
+  async function boot() {
+    loadLocalState();
+    const sessionExists = await loadCloudState();
     init();
+    if (!sessionExists) {
+      document.getElementById("authSec").classList.remove("hidden");
+      document.querySelectorAll(".top,.nav,.wrap").forEach(el => el.classList.add("hidden"));
+    } else {
+      document.getElementById("authSec").classList.add("hidden");
+      document.querySelectorAll(".top,.nav,.wrap").forEach(el => el.classList.remove("hidden"));
+    }
   }
-});
 
-window.fbAuth = t => {
-  const e = document.getElementById('ae').value, p = document.getElementById('ap').value;
-  if(t==='login') signInWithEmailAndPassword(auth, e, p).catch(err => alert(err.message));
-  else createUserWithEmailAndPassword(auth, e, p).catch(err => alert(err.message));
-};
+  window.init = () => {
+    checkWidth();
+    setTheme(localStorage.getItem("themeMode") || "dark");
+    loadProfile();
+    renderBudget();
+    renderTodo();
+    renderAcademic();
+    renderGoals();
+    updateDash();
+    show("dashboard");
+    drawChart();
+  };
 
-window.logout = () => signOut(auth);
-
-window.save = async () => {
-  if (currentUser) await setDoc(doc(db, "users", currentUser.uid), window.state);
-  updateDash();
-};
-
-window.updateDash = () => { renderTodo(); renderGoals(); calcBudget(); };
-window.show = sec => {
-  document.querySelectorAll('[id^="sec-"]').forEach(e => e.classList.add('hidden'));
-  document.getElementById('sec-'+sec)?.classList.remove('hidden');
-  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-  document.getElementById('m-'+sec)?.classList.add('active');
-  document.getElementById('menuDrop')?.classList.add('hidden');
-};
-
-window.renderBudget = () => {
-  const l = document.getElementById('bList');
-  if(!window.state.budgets.length){
-    l.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted)">No items</div>'; 
-    calcBudget(); return;
-  }
-  l.innerHTML = '';
-  window.state.budgets.forEach((it, i) => {
-    const d = document.createElement('div'); d.className = 'item' + (it.done ? ' done' : '');
-    d.innerHTML = `<input type="text" value="${it.name}" onchange="window.state.budgets[${i}].name=this.value;save();renderBudget()"><input type="number" value="${it.amount}" style="width:80px" oninput="window.state.budgets[${i}].amount=parseInt(this.value||0);save();calcBudget()"><span class="badge">${it.cat}</span><label class="tick"><input type="checkbox" ${it.done ? 'checked' : ''} onchange="window.state.budgets[${i}].done=this.checked;save();renderBudget()"> ${it.done ? 'Done' : 'Pending'}</label><button class="btn btn-red" onclick="window.state.budgets.splice(${i},1);save();renderBudget()" style="width:32px;padding:4px">�</button>`;
-    l.appendChild(d);
-  }); 
-  calcBudget();
-};
-
-window.addBudget = () => {
-  const n = document.getElementById('bName').value.trim(), a = parseInt(document.getElementById('bAmount').value || 0), c = document.getElementById('bCat').value;
-  if(!n || !a) return alert('Enter data');
-  window.state.budgets.push({name: n, amount: a, cat: c, done: false});
-  document.getElementById('bName').value = ''; document.getElementById('bAmount').value = '';
-  save(); renderBudget();
-};
-
-window.calcBudget = () => {
-  let p = 0, d = 0;
-  window.state.budgets.forEach(it => { if(it.done) d += it.amount; else p += it.amount; });
-  document.getElementById('tPending').textContent = p.toLocaleString() + ' RWF';
-  document.getElementById('tDone').textContent = d.toLocaleString() + ' RWF';
-  document.getElementById('tAll').textContent = (p + d).toLocaleString() + ' RWF';
-  document.getElementById('kBudget').textContent = (p + d).toLocaleString() + ' RWF';
-  drawChart();
-};
-
-window.renderTodo = () => {
-  const c = document.getElementById('todoList'); c.innerHTML = '';
-  window.state.todos.forEach((it, i) => {
-    const d = document.createElement('div'); d.className = 'item' + (it.done ? ' done' : '');
-    d.innerHTML = `<input type="checkbox" ${it.done ? 'checked' : ''} onchange="window.state.todos[${i}].done=this.checked;save();renderTodo()"><input type="text" value="${it.text}" onchange="window.state.todos[${i}].text=this.value;save()" style="flex:1"><span class="badge">${it.cat}</span><button class="btn btn-red" onclick="window.state.todos.splice(${i},1);save();renderTodo()" style="width:32px;padding:4px">�</button>`;
-    c.appendChild(d);
-  });
-  document.getElementById('kTodo').textContent = window.state.todos.filter(t => !t.done).length;
-};
-
-window.addTodo = () => {
-  const i = document.getElementById('todoInput'), t = i.value.trim(); if(!t) return;
-  window.state.todos.push({text: t, cat: document.getElementById('todoCat').value, done: false});
-  i.value = ''; save(); renderTodo();
-};
-
-window.renderAcademic = () => {
-  const c = document.getElementById('acList'); if(!c) return; c.innerHTML = '';
-  if(!window.state.academics.length) { c.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted)">No CATs</div>'; return; }
-  window.state.academics.forEach((it, i) => {
-    const d = document.createElement('div'); d.className = 'item';
-    d.innerHTML = `<input type="text" value="${it.name}" onchange="window.state.academics[${i}].name=this.value;save()"><input type="number" value="${it.grade}" style="width:70px" onchange="window.state.academics[${i}].grade=this.value;save()"><input type="date" value="${it.date}" onchange="window.state.academics[${i}].date=this.value;save()"><button class="btn btn-red" onclick="window.state.academics.splice(${i},1);save();renderAcademic()" style="width:32px;padding:4px">�</button>`;
-    c.appendChild(d);
-  });
-};
-
-window.addAcademic = () => {
-  const n = document.getElementById('acName').value.trim(); if(!n) return alert('Enter name');
-  window.state.academics.push({ name: n, grade: document.getElementById('acGrade').value || 0, date: document.getElementById('acDate').value || '' });
-  document.getElementById('acName').value = ''; document.getElementById('acGrade').value = '';
-  save(); renderAcademic();
-};
-
-window.renderGoals = () => {
-  const c = document.getElementById('goalList'); c.innerHTML = '';
-  window.state.goals.forEach((it, i) => {
-    const d = document.createElement('div'); d.className = 'item' + (it.done ? ' done' : '');
-    d.innerHTML = `<input type="checkbox" ${it.done ? 'checked' : ''} onchange="window.state.goals[${i}].done=this.checked;save();renderGoals()"><input type="text" value="${it.text}" onchange="window.state.goals[${i}].text=this.value;save()" style="flex:1"><button class="btn btn-red" onclick="window.state.goals.splice(${i},1);save();renderGoals()" style="width:32px;padding:4px">�</button>`;
-    c.appendChild(d);
-  });
-  const pct = window.state.goals.length ? Math.round(window.state.goals.filter(g => g.done).length / window.state.goals.length * 100) : 0;
-  document.getElementById('kGoals').textContent = pct + '%';
-};
-
-window.addGoal = () => {
-  const i = document.getElementById('goalInput'), t = i.value.trim(); if(!t) return;
-  window.state.goals.push({text: t, done: false}); i.value = ''; save(); renderGoals();
-};
-
-window.loadProfile = () => {
-  const p = window.state.profile;
-  document.getElementById('pName').value = p.name || '';
-  document.getElementById('pCourse').value = p.course || '';
-  document.getElementById('pYear').value = p.year || '';
-  document.getElementById('pEmail').value = p.email || '';
-  document.getElementById('pBio').value = p.bio || '';
-  document.getElementById('dashName').textContent = p.name || 'User';
-};
-
-window.saveProfile = () => {
-  window.state.profile = { name: document.getElementById('pName').value, course: document.getElementById('pCourse').value, year: document.getElementById('pYear').value, email: document.getElementById('pEmail').value, bio: document.getElementById('pBio').value };
-  save(); loadProfile(); alert('Saved!');
-};
-
-window.checkWidth = () => {
-  const w = window.innerWidth, t = w < 400 ? 'SMALL PHONE' : w < 601 ? 'PHONE' : w < 901 ? 'TABLET' : 'DESKTOP';
-  document.getElementById('deviceTag').textContent = `${t} � ${w}px`;
-};
-
-window.drawChart = () => {
-  const canvas = document.getElementById('chart'); if(!canvas) return;
-  const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const cats = {}; window.state.budgets.forEach(b => { cats[b.cat || 'Other'] = (cats[b.cat || 'Other'] || 0) + b.amount; });
-  const entries = Object.entries(cats); if(!entries.length) return;
-  const max = Math.max(...entries.map(e => e[1]), 1), barW = 400 / entries.length;
-  entries.forEach((e, i) => {
-    const h = (e[1] / max) * 180, x = 60 + i * (barW + 20);
-    ctx.fillStyle = '#00c7be'; ctx.fillRect(x, 200 - h, barW, h);
-    ctx.fillStyle = '#9ca3af'; ctx.font = '11px Inter'; ctx.fillText(e[0], x, 220);
-    ctx.fillStyle = '#fafafa'; ctx.font = '700 12px Inter'; ctx.fillText(e[1].toLocaleString(), x, 190 - h);
-  });
-};
-
-window.setTheme = mode => {
-  document.documentElement.setAttribute('data-theme', mode);
-  localStorage.setItem('themeMode', mode);
-  document.querySelectorAll('.theme-switch button').forEach(b => b.classList.remove('active'));
-};
-
-window.toggleMenu = () => document.getElementById('menuDrop').classList.toggle('hidden');
-
-window.init = () => {
-  checkWidth();
-  setTheme(localStorage.getItem('themeMode') || 'dark');
-  loadProfile(); renderBudget(); renderTodo(); renderAcademic(); renderGoals(); updateDash(); show('dashboard'); drawChart();
-};
-
-window.addEventListener('resize', window.checkWidth);
-</script>
+  window.addEventListener("resize", window.checkWidth);
+  boot();
+    </script>
 
 </body>
 </html>
